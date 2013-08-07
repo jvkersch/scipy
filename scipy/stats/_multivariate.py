@@ -16,12 +16,18 @@ def _process_arguments(dim, mean, cov):
     Check dimensions mean and covariance matrix, and return full
     covariance matrix, if necessary.
 
+    TODO more descriptive name?
+
     """
     if mean is None:
         mean = np.zeros(dim)
     mean, cov = map(np.asarray, (mean, cov))
 
-    if len(mean) != dim:
+    if dim == 1:
+        mean.shape = (1, )
+        cov.shape  = (1, 1)
+
+    if mean.ndim != 1 or mean.shape[0] != dim:
         raise ValueError("Array 'mean' must be vector of length %d." % dim)
     if cov.ndim == 0:
         cov = cov * np.eye(dim)
@@ -31,6 +37,7 @@ def _process_arguments(dim, mean, cov):
         if cov.shape != (dim, dim):
             raise ValueError("Array 'cov' must be at most two-dimensional,"
                                  " but cov.ndim = %d" % cov.ndim)
+
     return mean, cov
 
 
@@ -40,10 +47,14 @@ def process_arguments(f):
 
     """ 
     @wraps(f)
-    def _f(x, mean=None, cov=1):
+    def _f(self, x, mean=None, cov=1):
         x = np.asarray(x)
+        if x.ndim == 0:
+            x = x[np.newaxis]
+        elif x.ndim == 1: 
+            x = x[:, np.newaxis]
         mean, cov = _process_arguments(x.shape[-1], mean, cov)
-        return f(x, mean, cov)
+        return f(self, x, mean, cov)
     return _f
 
 
@@ -83,7 +94,7 @@ def _pseudo_det(mat, eps=1e-5):
     return np.prod(s[s>eps])
 
 
-class multivariate_normal(object):
+class multivariate_normal_gen(object):
     r"""
     A multivariate normal random variable.
 
@@ -107,9 +118,14 @@ class multivariate_normal(object):
     and :math:`k` is the dimension of the space where :math:`x` takes values.
 
     """
+    def __call__(self, dim, mean=None, cov=1):
+        """
+        Create a frozen multivariate normal distribution.
 
-    @staticmethod
-    def _logpdf(x, mean, inv_cov, log_det_cov):
+        """
+        return multivariate_normal_frozen(dim, mean, cov)
+
+    def _logpdf(self, x, mean, prec, log_det_cov):
         """
         Log of the multivariate normal probability density function.
 
@@ -120,8 +136,8 @@ class multivariate_normal(object):
             density function
         mean : array_like
             Mean of the distribution
-        inv_cov : array_like
-            Inverse of the covariance matrix
+        prec : array_like
+            Precision matrix, i.e. inverse of the covariance matrix
         log_det_cov : float
             Logarithm of the determinant of the covariance matrix
 
@@ -133,12 +149,11 @@ class multivariate_normal(object):
         """
         dim = x.shape[-1]
         dev = x - mean
-        maha = np.einsum('...k,...kl,...l->...', dev, inv_cov, dev)
+        maha = np.einsum('...k,...kl,...l->...', dev, prec, dev)
         return -0.5 * (dim * _log_2pi + log_det_cov + maha)
 
-    @staticmethod
     @process_arguments
-    def logpdf(x, mean, cov):
+    def logpdf(self, x, mean, cov):
         """
         Log of the multivariate normal probability density function.
 
@@ -159,12 +174,11 @@ class multivariate_normal(object):
 
         """
         inv_cov = np.linalg.pinv(cov)
-        log_det_cov = _pseudo_det(cov)
-        return multivariate_normal._logpdf(x, mean, inv_cov, log_det_cov)
+        log_det_cov = np.log(_pseudo_det(cov))
+        return self._logpdf(x, mean, inv_cov, log_det_cov)
 
-    @staticmethod
     @process_arguments
-    def pdf(x, mean, cov):
+    def pdf(self, x, mean, cov):
         """
         Multivariate normal probability density function.
 
@@ -183,19 +197,25 @@ class multivariate_normal(object):
             Probability density function evaluated at `x`
 
         """
-        return np.exp( multivariate_normal.logpdf(x, mean, cov) )
+        return np.exp( self.logpdf(x, mean, cov) )
+
+multivariate_normal = multivariate_normal_gen()
 
 
 class multivariate_normal_frozen(object):
 
     def __init__(self, dim, mean=None, cov=1):
-
         mean, cov = _process_arguments(dim, mean, cov)
-
         self.mean = mean
-        self.inv_cov = np.linalg.pinv(cov)
-        
-
+        self.cov = cov
+        self.precision = np.linalg.pinv(cov)
+        self.log_det_cov = np.log(_pseudo_det(cov))
 
     def logpdf(self, x):
-        return multivariate_normal(x, self.mean, self.cov)
+        return multivariate_normal._logpdf(x, self.mean, self.precision, 
+                                           self.log_det_cov)
+        
+    def pdf(self, x):
+        return np.exp(self.logpdf(x))
+        
+
