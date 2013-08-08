@@ -14,6 +14,28 @@ from scipy.stats import norm
 
 from scipy.integrate import romb
 
+def test_scalar_values():
+    # When evaluated on scalar data, the pdf should return a scalar
+    x = 1.5; mean = 1.7; cov = 2.5
+    pdf = multivariate_normal.pdf(x, mean, cov)
+    assert(pdf.ndim == 0)
+
+    # When evaluated on a single vector, the pdf should return a scalar
+    x = np.random.randn(5)
+    mean = np.random.randn(5)
+    cov = np.abs(np.random.randn(5)) # Diagonal values for cov. matrix
+    pdf = multivariate_normal.pdf(x, mean, cov)
+    assert(pdf.ndim == 0)
+
+def test_logpdf():
+    # Check that the log of the pdf is in fact the logpdf
+    x = np.random.randn(5)
+    mean = np.random.randn(5)
+    cov = np.abs(np.random.randn(5))
+    d1 = multivariate_normal.logpdf(x, mean, cov)
+    d2 = multivariate_normal.pdf(x, mean, cov)
+    assert_allclose(d1, np.log(d2))
+
 def test_normal_1D():
     # The probability density function for a 1D normal variable should 
     # agree with the standard normal distribution in scipy.stats.distributions
@@ -47,6 +69,16 @@ def test_marginalization():
     gauss_y = norm.pdf(v, loc=mean[1], scale=cov[1,1]**0.5)
     assert_allclose(margin_x, gauss_x, rtol=1e-2, atol=1e-2)
     assert_allclose(margin_y, gauss_y, rtol=1e-2, atol=1e-2)
+
+def test_frozen():
+    # The frozen distribution should agree with the regular one
+    x = np.random.randn(5)
+    mean = np.random.randn(5)
+    cov = np.abs(np.random.randn(5))
+    norm_frozen = multivariate_normal(mean, cov)
+    assert_allclose(norm_frozen.pdf(x), multivariate_normal.pdf(x, mean, cov))
+    assert_allclose(norm_frozen.logpdf(x), 
+                    multivariate_normal.logpdf(x, mean, cov))
 
 if __name__ == "__main__":
     run_module_suite()
