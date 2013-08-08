@@ -63,6 +63,24 @@ def _process_parameters(dim, mean, cov):
 
     return dim, mean, cov
 
+def _process_quantiles(x, dim):
+    """
+    Adjust quantiles array so that last axis labels the components of 
+    each data point.
+
+    """
+    x = np.asarray(x)
+
+    if x.ndim == 0:
+        x = x[np.newaxis]
+    elif x.ndim == 1:
+        if dim == 1:
+            x = x[:, np.newaxis]
+        else:
+            x = x[np.newaxis, :]
+
+    return x
+
 
 def process_arguments(f):
     """
@@ -77,15 +95,7 @@ def process_arguments(f):
     @wraps(f)
     def _f(self, x, mean=None, cov=1):
         dim, mean, cov = _process_parameters(None, mean, cov)
-        x = np.asarray(x)
-
-        if x.ndim == 0:
-            x = x[np.newaxis]
-        elif x.ndim == 1:
-            if dim == 1:
-                x = x[:, np.newaxis]
-            else:
-                x = x[np.newaxis, :]
+        x = _process_quantiles(x, dim)
 
         out = f(self, x, mean, cov).squeeze()
         if out.ndim == 0:
@@ -343,6 +353,7 @@ class multivariate_normal_frozen(object):
         self._log_det_cov = np.log(_pseudo_det(self.cov))
 
     def logpdf(self, x):
+        x = _process_quantiles(x, self.dim)
         return multivariate_normal._logpdf(x, self.mean, self.precision,
                                            self._log_det_cov)
 
@@ -352,7 +363,6 @@ class multivariate_normal_frozen(object):
 
 # Set frozen generator docstrings from corresponding docstrings in
 # multivariate_normal_gen and fill in default strings in class docstrings
-
 for name in ['logpdf', 'pdf']:
     method = multivariate_normal_gen.__dict__[name]
     method_frozen = multivariate_normal_frozen.__dict__[name]
