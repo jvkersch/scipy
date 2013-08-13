@@ -166,14 +166,18 @@ x : array_like
     Quantiles, with the last axis of `x` denoting the components.
 """
 
+_doc_frozen_callparams_note = \
+"""See class definition for a detailed description of `x`."""
+
 docdict_params = {
     '_doc_default_callparams': _doc_default_callparams,
     '_doc_callparams_note' : _doc_callparams_note
 }
 
-docdict_noparams = docdict_params.copy()
-docdict_noparams['_doc_default_callparams'] = _doc_frozen_callparams
-
+docdict_noparams = {
+    '_doc_default_callparams': _doc_frozen_callparams,
+    '_doc_callparams_note': _doc_frozen_callparams_note
+}
 
 class multivariate_normal_gen(object):
     r"""
@@ -353,9 +357,14 @@ class multivariate_normal_frozen(object):
         self._log_det_cov = np.log(_pseudo_det(self.cov))
 
     def logpdf(self, x):
+        # TODO: the output processing below can be made into a generator
+        # just as for the multivariate_normal class.
         x = _process_quantiles(x, self.dim)
-        return multivariate_normal._logpdf(x, self.mean, self.precision,
-                                           self._log_det_cov)
+        out = multivariate_normal._logpdf(x, self.mean, self.precision,
+                                          self._log_det_cov).squeeze()
+        if out.ndim == 0:
+            out = out[()]
+        return out
 
     def pdf(self, x):
         return np.exp(self.logpdf(x))
