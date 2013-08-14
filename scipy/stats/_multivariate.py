@@ -12,6 +12,7 @@ __all__ = ['multivariate_normal']
 
 _LOG_2PI = np.log(2 * np.pi)
 
+
 def _process_parameters(dim, mean, cov):
     """
     Infer dimensionality from mean or covariance matrix, ensure that
@@ -63,9 +64,10 @@ def _process_parameters(dim, mean, cov):
 
     return dim, mean, cov
 
+
 def _process_quantiles(x, dim):
     """
-    Adjust quantiles array so that last axis labels the components of 
+    Adjust quantiles array so that last axis labels the components of
     each data point.
 
     """
@@ -137,7 +139,7 @@ def _pseudo_det(mat, eps=1e-5):
 
     """
     s = np.linalg.svd(mat, compute_uv=False)
-    return np.prod(s[s>eps])
+    return np.prod(s[s > eps])
 
 
 _doc_default_callparams = \
@@ -171,13 +173,14 @@ _doc_frozen_callparams_note = \
 
 docdict_params = {
     '_doc_default_callparams': _doc_default_callparams,
-    '_doc_callparams_note' : _doc_callparams_note
+    '_doc_callparams_note': _doc_callparams_note
 }
 
 docdict_noparams = {
     '_doc_default_callparams': _doc_frozen_callparams,
     '_doc_callparams_note': _doc_frozen_callparams_note
 }
+
 
 class multivariate_normal_gen(object):
     r"""
@@ -319,7 +322,7 @@ class multivariate_normal_gen(object):
         """
         inv_cov = np.linalg.pinv(cov)
         log_det_cov = np.log(_pseudo_det(cov))
-        return np.exp( self._logpdf(x, mean, inv_cov, log_det_cov) )
+        return np.exp(self._logpdf(x, mean, inv_cov, log_det_cov))
 
 multivariate_normal = multivariate_normal_gen()
 
@@ -377,4 +380,3 @@ for name in ['logpdf', 'pdf']:
     method_frozen = multivariate_normal_frozen.__dict__[name]
     method_frozen.__doc__ = doccer.docformat(method.__doc__, docdict_noparams)
     method.__doc__ = doccer.docformat(method.__doc__, docdict_params)
-
